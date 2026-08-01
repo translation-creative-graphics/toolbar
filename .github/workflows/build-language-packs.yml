@@ -1,0 +1,45 @@
+name: Build Language Packs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build ZIPs
+        run: python build_language_packs.py
+
+      - name: Delete existing latest release
+        run: gh release delete latest --yes --cleanup-tag || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create latest release
+        run: |
+          gh release create latest \
+            --title "Toolbar Module Language Packs (latest)" \
+            --notes "Automatically built from the latest translations on \`main\`.
+
+          Fetched programmatically by each CRE8 component's language installer — one ZIP per locale, containing a single \`{locale}.mod_stackideas_toolbar.ini\` file." \
+            dist/*.zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
